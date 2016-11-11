@@ -12,7 +12,7 @@ HANDLE HND;
 void init(void);
 void gotoxy(int x, int y);
 void titleScreen(void);
-void printWithPosition(char *str, int cols, int color, int x, int y);
+void printWithPosition(char str[], int cols, int color, int x, int y);
 int main(void)
 {
 	
