@@ -7,22 +7,25 @@
 #define		UP		72
 #define		DOWN	80
 #define		ENTER	13
+#define		ESC		27
 
 #define		COLSIZE	158
 HANDLE HND;
 
 void init(void);
 void gotoxy(int x, int y);
-int titleScreen(void);
 void printWithPosition(char str[], int color, int x, int y, int isCenterAlign);
-int main(void)
+int titleScreen(void);
+int inGame(char mapName[]);
+int main(void)//@ = 플레이어, # = 벽, ? = 조사 가능 공간, * - 오브젝트
 {
 	HND = GetStdHandle(STD_OUTPUT_HANDLE);
 
 	init();
 	if (titleScreen() == 0)
 		return 0;
-	printWithPosition("계속하려면 아무 키나 누르세요...", 0x17, 50, 15, 1);
+	
+	inGame("dormitoryRoom");
 	_getch();
 	return 0;
 }
@@ -36,6 +39,22 @@ void init(void)
 	INFO.dwSize.Y = INFO.srWindow.Bottom + 1;
 	SetConsoleScreenBufferSize(HND, INFO.dwSize);
 	printf("%d", INFO.dwSize.X);
+}
+void gotoxy(int x, int y)
+{
+	COORD pos = { x, y };
+	SetConsoleCursorPosition(HND, pos);
+}
+void printWithPosition(char str[], int color, int x, int y, int CenterAlign)
+{
+	COORD POS = { x, y }, SIZE = GetLargestConsoleWindowSize(HND);
+	SetConsoleTextAttribute(HND, color);
+	if (CenterAlign == 0)
+		gotoxy(x, y);
+	else
+		gotoxy((SIZE.X - strlen(str)) / 2, y);
+	printf("%s", str);
+	SetConsoleTextAttribute(HND, 0x07);
 }
 int titleScreen(void)
 {
@@ -78,20 +97,31 @@ int titleScreen(void)
 			return flag;
 	}
 }
-void gotoxy(int x, int y)
+
+int inGame(char mapName[])
 {
-	COORD pos = { x, y };
-	SetConsoleCursorPosition(HND, pos);
-}
-void printWithPosition(char str[], int color, int x, int y, int isCenterAlign)
-{
-	int j;
-	COORD POS = { x, y }, SIZE = GetLargestConsoleWindowSize(HND);
-	SetConsoleTextAttribute(HND, color);
-	if (isCenterAlign == 0)
-		gotoxy(x, y);
-	else
-		gotoxy((SIZE.X - strlen(str)) / 2, y);
-	printf("%s", str);
-	SetConsoleTextAttribute(HND, 0x07);
+	FILE *mapFile = fopen(mapName, "rt");
+	char **map;
+	char ch;
+	int mapXSize, mapYSize, x, y;
+
+	system("cls");
+	fscanf(mapFile, "%d %d\n", &mapYSize, &mapXSize);
+	map = (char**)calloc(sizeof(char*), mapYSize);
+	for (y = 0; y < mapYSize; y++)
+		map[y] = (char*)calloc(sizeof(char), mapXSize + 1);
+	for (y = 0; y < mapYSize; y++)
+	{
+		for (x = 0; x < mapXSize + 1; x++)
+		{
+			fread(&ch, sizeof(char), 1, mapFile);
+			if (x == mapXSize)
+				map[y][x] = 0;
+			else
+				map[y][x] = ch;
+		}	
+	}
+	for (y = 0; y < mapYSize; y++)
+		printWithPosition(map[y], 0x07, 0, y + 1, 1);
+	return 1;
 }
