@@ -16,18 +16,21 @@ void init(void);
 void gotoxy(int x, int y);
 void printWithPosition(char str[], int color, int x, int y, int isCenterAlign);
 int titleScreen(void);
-int inGame(char mapName[], int door);
+int inGame(char mapName[]);
 int main(void)//@ = 플레이어, # = 벽, ? = 조사 가능 공간, * - 오브젝트
 {
-	char *rooms[1] = { "dormitoryRoom" };
-	int roomIndex = 0;
+	char *rooms[2] = { "exit", "dormitoryRoom" };
+	int roomIndex = 1;
 
 	init();
 	if (titleScreen() == 0)
 		return 0;
-	
-	inGame(rooms[roomIndex], 1);
-	_getch();
+	while (1)
+	{
+		roomIndex = inGame(rooms[roomIndex]);
+		if (roomIndex == 0)
+			break;
+	}
 	return 0;
 }
 void init(void)
@@ -49,7 +52,6 @@ void gotoxy(int x, int y)
 }
 void printWithPosition(char str[], int color, int x, int y, int CenterAlign)
 {
-	COORD POS = { x, y };
 	SetConsoleTextAttribute(HND, color);
 	if (CenterAlign == 0)
 		gotoxy(x, y);
@@ -99,11 +101,10 @@ int titleScreen(void)
 			return flag;
 	}
 }
-
-int inGame(char mapName[], int door)
+int inGame(char mapName[])
 {
 	static char player = 'v';
-	static int xface = 0, yface = 1;
+	static int xface = 0, yface = 1, doorIndex = 0;
 	FILE *mapFile = fopen(mapName, "rt");
 	FILE *mapInfoFile;
 	FILE *mapTextFile;
@@ -120,6 +121,7 @@ int inGame(char mapName[], int door)
 	free(mapNameCopy);
 
 	system("cls");
+	
 	//맵 파일 불러오기 시작
 	fscanf(mapFile, "%d %d\n", &mapYSize, &mapXSize);
 	
@@ -143,6 +145,22 @@ int inGame(char mapName[], int door)
 				px = x;
 				py = y;
 				player = ch;
+				switch (ch)
+				{
+				case'<':
+					xface = -1;
+					yface = 0;
+					break;
+				case '>':
+					xface = 1;
+					yface = 0;
+				case 'v':
+					xface = 0;
+					yface = 1;
+				case '^':
+					xface = 0;
+					yface = -1;
+				}
 			}
 			if (x == mapXSize)
 				map[y][x] = 0;
@@ -211,6 +229,7 @@ int inGame(char mapName[], int door)
 
 		if (ch == ESC)
 			break;
+		printWithPosition("                                                                    ", 0x07, 0, mapYSize + 2, 1);
 		if (move && map[py + yface][px + xface] == ' ')
 		{
 			map[py][px] = ' ';
@@ -222,7 +241,7 @@ int inGame(char mapName[], int door)
 		{
 			if (strncmp(info[py + yface][px + xface], "text", 4))
 			{
-				sscanf(info[py + yface][px + xface], "text %d", &textIndex);
+				sscanf(info[py + yface][px + xface], " text %d", &textIndex);
 				printWithPosition(texts[textIndex], 0x07, 0, mapYSize + 2, 1);
 			}
 		}
@@ -244,17 +263,30 @@ int inGame(char mapName[], int door)
 	for (x = 0; x < textLineNum; x++)
 		free(texts[x]);
 	free(texts);
-	return 1;
+
+	for (y = 0; y < mapYSize; y++)
+	{
+		for (x = 0; x < mapXSize; x++)
+			if (info[y][x] != NULL)
+				free(info[y][x]);
+		free(info[y]);
+	}
+	free(info);
+
+	return 0;
 }
-//y, x door [roomIndex]
+//y, x door [roomIndex] [doorIndex]
 //y, x inve [fileName]
 //y, x text [textIndex]
+//y, x esca [endingName]
 //플레이어 좌표 변수를 새로 지정하면
 //기숙사 맵에다 아이콘을 때려박고
 //좌표를 저장한 다음에
 //맵을 이동하면 플레이어를 원래 맵에서 없애고
 //이동한 맵을 연 다음에
 //들어온 문 정보를 얻어서 그 좌표에 플레이어를 넣으면 되지
-
-//텍스트 파일을 하나 더 만들고
-//거기다가 한 줄 씩 저장하자
+//그 좌표는 어떻게 판별할까
+//문도 static으로 만들어서 함수 안에 넣으면 되지 않을까
+//나갈 경우 거기에 저장된 이벤트의 doorIndex를 가져와 door에 넣고
+//roomIndex는 리턴해준담에
+//다시 들어오면 doorIndex에 맞는 문 좌표를 플레이어에 넣어주면 되지
