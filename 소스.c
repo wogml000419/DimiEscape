@@ -8,6 +8,7 @@
 #define		UP		72
 #define		DOWN	80
 #define		ENTER	13
+#define		SPACE	32
 #define		ESC		27
 
 HANDLE HND;
@@ -105,12 +106,10 @@ int titleScreen(void)
 		printWithPosition("■■■■　■　　■　■■■　　■　", colors[!flag], (CONSOLE_WIDTH / 2 - 35) / 2 + CONSOLE_WIDTH / 2, 20, 0);
 		ch = _getch();
 		if (-32 == ch || 0 == ch)
-		{
 			ch = _getch();
-			if (LEFT == ch || RIGHT == ch)
-				flag = !flag;
-		}
-		else if (ENTER == ch)
+		if (LEFT == ch || RIGHT == ch)
+			flag = !flag;
+		else if (ch)
 			return flag;
 	}
 }
@@ -122,7 +121,6 @@ int inGame(char mapName[])
 	FILE *mapInfoFile;
 	FILE *mapTextFile;
 	FILE *mapDoorFile;
-	FILE *saveFile;
 	char *mapNameCopy = (char*)calloc(30, sizeof(char));
 	char **map;
 	char **texts;
@@ -231,7 +229,7 @@ int inGame(char mapName[])
 	map[py][px] = player;
 	for (y = 0; y < mapYSize; y++)
 		printWithPosition(map[y], 0x07, 0, y + 1, 1);
-
+	printWithPosition(&player, 0x0d, (CONSOLE_WIDTH - mapXSize) / 2 + px, py + 1, 0);
 	while (1)
 	{
 		ch = _getch();
@@ -260,6 +258,7 @@ int inGame(char mapName[])
 			move = 1;
 			break;
 		case ENTER:
+		case SPACE:
 			move = 0;
 			break;
 		}
@@ -297,7 +296,7 @@ int inGame(char mapName[])
 		}
 		map[py][px] = player;
 		printWithPosition(map[py], 0x07, 0, py + 1, 1);
-
+		printWithPosition(&player, 0x0d, (CONSOLE_WIDTH - mapXSize) / 2 + px, py + 1, 0);
 	}
 	//맵파일 불러오기 시작
 	mapFile = fopen(mapName, "wt");
@@ -331,21 +330,6 @@ int inGame(char mapName[])
 //y, x inve [fileName]
 //y, x text [textIndex]
 //y, x esca [endingName]
-//플레이어 좌표 변수를 새로 지정하면
-//기숙사 맵에다 아이콘을 때려박고
-//좌표를 저장한 다음에
-//맵을 이동하면 플레이어를 원래 맵에서 없애고
-//이동한 맵을 연 다음에
-//들어온 문 정보를 얻어서 그 좌표에 플레이어를 넣으면 되지
-//그 좌표는 어떻게 판별할까
-//문도 static으로 만들어서 함수 안에 넣으면 되지 않을까
-//나갈 경우 거기에 저장된 이벤트의 doorIndex를 가져와 door에 넣고
-//roomIndex는 리턴해준담에
-//다시 들어오면 doorIndex에 맞는 문 좌표를 플레이어에 넣어주면 되지
-//그럼 door도 배열을 만들어야 하나?
-//구조체 배열 쓰기는 힘들 것 같으니
-//y1, x1, y2, x2....로 저장해서
-//doorIndex * 2 (+1)로 받자
 
 //To Do:
 //인벤토리 구현한 다음
