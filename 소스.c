@@ -1,3 +1,4 @@
+#define _WIN32_WINNT 0x0601
 #include <stdio.h>
 #include <Windows.h>
 #include <conio.h>
@@ -19,27 +20,39 @@ int titleScreen(void);
 int inGame(char mapName[]);
 int main(void)//@ = 플레이어, # = 벽, ? = 조사 가능 공간, * - 오브젝트
 {
-	char *rooms[2] = { "exit", "dormitoryRoom" };
+	char *rooms[3] = { "exit", "dormitoryRoom", "dormitoryLeftHall" };
 	int roomIndex = 1;
+	FILE *saveFile = fopen("save", "rb");
 
 	init();
 	if (titleScreen() == 0)
 		return 0;
+	if (saveFile != NULL)
+	{
+		fscanf(saveFile, "%d", &roomIndex);
+		fclose(saveFile);
+	}
 	while (1)
 	{
+		saveFile = fopen("save", "wb");
+		fprintf(saveFile, "%d", roomIndex);
+		fclose(saveFile);
 		roomIndex = inGame(rooms[roomIndex]);
 		if (roomIndex == 0)
 			break;
 	}
+	
 	return 0;
 }
 void init(void)
 {
 	COORD C = { 0, 0 };
-	CONSOLE_SCREEN_BUFFER_INFO INFO; 
+	CONSOLE_SCREEN_BUFFER_INFO INFO;
+	CONSOLE_CURSOR_INFO CINFO = { 1, 0 };
 	HND = GetStdHandle(STD_OUTPUT_HANDLE);
+	SetConsoleCursorInfo(HND, &CINFO);
 	SetConsoleTitleA("DIMI ESCAPE");
-	SetConsoleDisplayMode(HND, CONSOLE_FULLSCREEN_MODE, &C); 
+ 	SetConsoleDisplayMode(HND, CONSOLE_FULLSCREEN_MODE, &C);
 	GetConsoleScreenBufferInfo(HND, &INFO);
 	INFO.dwSize.Y = INFO.srWindow.Bottom + 1;
 	SetConsoleScreenBufferSize(HND, INFO.dwSize);
@@ -104,27 +117,32 @@ int titleScreen(void)
 int inGame(char mapName[])
 {
 	static char player = 'v';
-	static int xface = 0, yface = 1, doorIndex = 0;
+	static int xface = 0, yface = 1, doorIndex = -1;
 	FILE *mapFile = fopen(mapName, "rt");
 	FILE *mapInfoFile;
 	FILE *mapTextFile;
+	FILE *mapDoorFile;
+	FILE *saveFile;
 	char *mapNameCopy = (char*)calloc(30, sizeof(char));
 	char **map;
 	char **texts;
 	char ***info;
 	char ch;
-	int mapXSize, mapYSize, x, y, i, move, textLineNum, textIndex, mapInfoNum, px = 3, py = 7;
+	int *doorInfo;
+	int mapXSize, mapYSize, x, y, i, move, textLineNum, textIndex, mapInfoNum, doorNum, retRoomIndex, px = -1, py = -1;
 	strcpy(mapNameCopy, mapName);
 	mapInfoFile = fopen(strcat(mapNameCopy, "Info"), "rt");
 	strcpy(mapNameCopy, mapName);
 	mapTextFile = fopen(strcat(mapNameCopy, "Texts"), "rt");
+	strcpy(mapNameCopy, mapName);
+	mapDoorFile = fopen(strcat(mapNameCopy, "Doors"), "rt");
 	free(mapNameCopy);
 
 	system("cls");
-	
+
 	//맵 파일 불러오기 시작
 	fscanf(mapFile, "%d %d\n", &mapYSize, &mapXSize);
-	
+
 	map = (char**)calloc(sizeof(char*), mapYSize);
 	info = (char***)calloc(sizeof(char**), mapYSize);
 	for (y = 0; y < mapYSize; y++)
@@ -166,7 +184,7 @@ int inGame(char mapName[])
 				map[y][x] = 0;
 			else
 				map[y][x] = ch;
-		}	
+		}
 	}
 	fclose(mapFile);
 	//맵 파일 다 불러옴
@@ -191,6 +209,25 @@ int inGame(char mapName[])
 	}
 	fclose(mapInfoFile);
 	//맵 정보 파일 불러오기 끝
+	//문 정보 파일 불러오기 시작
+	fscanf(mapDoorFile, "%d", &doorNum);
+	doorInfo = (int*)calloc(doorNum * 2, sizeof(int));
+	for (i = 0; i < doorNum; i++)
+		fscanf(mapDoorFile, "%d, %d", &doorInfo[i * 2], &doorInfo[i * 2 + 1]);
+	fclose(mapDoorFile);
+	//문 정보 파일 불러오기 끝
+	if (doorIndex != -1)
+	{
+		py = doorInfo[doorIndex * 2];
+		px = doorInfo[doorIndex * 2 + 1];
+	}
+	if (px == -1 || py == -1)
+	{
+		if (doorIndex == -1)
+			doorIndex = 0;
+		py = doorInfo[doorIndex * 2];
+		px = doorInfo[doorIndex * 2 + 1];
+	}
 	map[py][px] = player;
 	for (y = 0; y < mapYSize; y++)
 		printWithPosition(map[y], 0x07, 0, y + 1, 1);
@@ -228,7 +265,11 @@ int inGame(char mapName[])
 		}
 
 		if (ch == ESC)
+		{
+			
+			retRoomIndex = 0;
 			break;
+		}
 		printWithPosition("                                                                    ", 0x07, 0, mapYSize + 2, 1);
 		if (move && map[py + yface][px + xface] == ' ')
 		{
@@ -236,10 +277,19 @@ int inGame(char mapName[])
 			printWithPosition(map[py], 0x07, 0, py + 1, 1);
 			py += yface;
 			px += xface;
+			if (info[py][px] != NULL)
+			{
+				if (strncmp(info[py][px], " door", 5) == 0)
+				{
+					sscanf(info[py][px], " door %d %d", &retRoomIndex, &doorIndex);
+					map[py][px] = ' ';
+					break;
+				}
+			}
 		}
 		else if (!move && info[py + yface][px + xface] != NULL)
 		{
-			if (strncmp(info[py + yface][px + xface], "text", 4))
+			if (strncmp(info[py + yface][px + xface], " text", 5) == 0)
 			{
 				sscanf(info[py + yface][px + xface], " text %d", &textIndex);
 				printWithPosition(texts[textIndex], 0x07, 0, mapYSize + 2, 1);
@@ -247,7 +297,7 @@ int inGame(char mapName[])
 		}
 		map[py][px] = player;
 		printWithPosition(map[py], 0x07, 0, py + 1, 1);
-		
+
 	}
 	//맵파일 불러오기 시작
 	mapFile = fopen(mapName, "wt");
@@ -273,7 +323,9 @@ int inGame(char mapName[])
 	}
 	free(info);
 
-	return 0;
+	free(doorInfo);
+
+	return retRoomIndex;
 }
 //y, x door [roomIndex] [doorIndex]
 //y, x inve [fileName]
@@ -290,3 +342,11 @@ int inGame(char mapName[])
 //나갈 경우 거기에 저장된 이벤트의 doorIndex를 가져와 door에 넣고
 //roomIndex는 리턴해준담에
 //다시 들어오면 doorIndex에 맞는 문 좌표를 플레이어에 넣어주면 되지
+//그럼 door도 배열을 만들어야 하나?
+//구조체 배열 쓰기는 힘들 것 같으니
+//y1, x1, y2, x2....로 저장해서
+//doorIndex * 2 (+1)로 받자
+
+//To Do:
+//인벤토리 구현한 다음
+//엔딩을 구현하자
