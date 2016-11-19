@@ -1,5 +1,7 @@
 #define _WIN32_WINNT 0x0601
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <Windows.h>
 #include <conio.h>
 
@@ -11,38 +13,48 @@
 #define		SPACE	32
 #define		ESC		27
 
+#define		ITEMNUM	2
+
 HANDLE HND;
 int CONSOLE_WIDTH;
-
+char *items[2] = { "사복", "휴대폰" };
+int itemObtained[2] = { 0 ,    0 };
 void init(void);
 void gotoxy(int x, int y);
 void printWithPosition(char str[], int color, int x, int y, int isCenterAlign);
 int titleScreen(void);
+void clearGame(char *rooms[], int roomNum);
 int inGame(char mapName[]);
 int main(void)//@ = 플레이어, # = 벽, ? = 조사 가능 공간, * - 오브젝트
 {
 	char *rooms[3] = { "exit", "dormitoryRoom", "dormitoryLeftHall" };
-	int roomIndex = 1;
+	int roomIndex = 1, tReturn;
 	FILE *saveFile = fopen("save", "rb");
 
 	init();
-	if (titleScreen() == 0)
+	tReturn = titleScreen();
+	if (tReturn == 0)
 		return 0;
+	else if (tReturn == -1)
+		clearGame(rooms, 3);
 	if (saveFile != NULL)
 	{
-		fscanf(saveFile, "%d", &roomIndex);
+		fread(&roomIndex, sizeof(int), 1, saveFile);
+		fread(itemObtained, sizeof(int), ITEMNUM, saveFile);
 		fclose(saveFile);
 	}
 	while (1)
 	{
 		saveFile = fopen("save", "wb");
-		fprintf(saveFile, "%d", roomIndex);
+		fwrite(&roomIndex, sizeof(int), 1, saveFile);
 		fclose(saveFile);
 		roomIndex = inGame(rooms[roomIndex]);
 		if (roomIndex == 0)
 			break;
 	}
-	
+	saveFile = fopen("save", "ab");
+	fwrite(itemObtained, sizeof(int), ITEMNUM, saveFile);
+	fclose(saveFile);
 	return 0;
 }
 void init(void)
@@ -110,24 +122,96 @@ int titleScreen(void)
 		if (LEFT == ch || RIGHT == ch)
 			flag = !flag;
 		else if (ch)
-			return flag;
+		{
+			if (flag == 0)
+				return 0;
+			else
+				break;
+		}
 	}
+	system("cls");
+	while (1)
+	{
+		printWithPosition("　■　　■　　■■■　　■　　　■　■■■　■", colors[!flag], 0, 1, 1);
+		printWithPosition("■■■　■　■　　　■　■■■■■　■　　　■", colors[!flag], 0, 2, 1);
+		printWithPosition("　■　　■　　■■■　　■　　　■　■■■　■", colors[!flag], 0, 3, 1);
+		printWithPosition("　■　■■　■■■■■　■■■■■　■　　■■", colors[!flag], 0, 4, 1);
+		printWithPosition("■　■　■　　■■■　　■■■■■　■　　　■", colors[!flag], 0, 5, 1);
+		printWithPosition("■　■　■　　■■■　　　　■　　　■■■　■", colors[!flag], 0, 6, 1);
+	
+		printWithPosition("　■　　■　　■　　■　　■　　■", colors[flag], 0, 8, 1);
+		printWithPosition("■　■　■　■　■　■　■　■　■", colors[flag], 0, 9, 1);
+		printWithPosition("■　■　■　■　■■■　■　■■■", colors[flag], 0, 10, 1);
+		printWithPosition("■　■　■　■　■　■　■　■　■", colors[flag], 0, 11, 1);
+		printWithPosition("　■　　■　　■　　■　■　■　■", colors[flag], 0, 12, 1);
+
+		ch = _getch();
+		if (ch == -32 || ch == 0)
+			ch = _getch();
+
+		if (ch == LEFT || ch == RIGHT || ch == UP || ch == DOWN)
+			flag = !flag;
+		else if (ch)
+		{
+			if (flag == 0)
+				return -1;
+			else
+				return 1;
+		}
+	}
+}
+void clearGame(char *rooms[], int roomNum)
+{
+	int i, readCnt;
+	int tempArr[ITEMNUM] = { 0 };
+	FILE *map;
+	FILE *mapO;
+	FILE *save;
+	char str[40];
+	char buffer[55];
+	for (i = 1; i < roomNum; i++)
+	{
+		map = fopen(rooms[i], "wt");
+		strcpy(str, "Originals/");
+		strcat(str, rooms[i]);
+		strcat(str, "O.txt");
+		mapO = fopen(str, "rt");
+
+		while (1)
+		{
+			readCnt = fread(buffer, sizeof(char), 50, mapO);
+			if (readCnt < 50)
+				break;
+			fwrite(buffer, sizeof(char), 50, map);
+		}
+		fwrite(buffer, sizeof(char), readCnt, map);
+
+		fclose(map);
+		fclose(mapO);	
+	}
+	i = 1;
+	save = fopen("save", "wb");
+	fwrite(&i, sizeof(int), 1, save);
+	fwrite(tempArr, sizeof(int), ITEMNUM, save);
+	fclose(save);
 }
 int inGame(char mapName[])
 {
 	static char player = 'v';
 	static int xface = 0, yface = 1, doorIndex = -1;
+	
 	FILE *mapFile = fopen(mapName, "rt");
 	FILE *mapInfoFile;
 	FILE *mapTextFile;
 	FILE *mapDoorFile;
+	char itemText[30];
 	char *mapNameCopy = (char*)calloc(30, sizeof(char));
 	char **map;
 	char **texts;
 	char ***info;
 	char ch;
 	int *doorInfo;
-	int mapXSize, mapYSize, x, y, i, move, textLineNum, textIndex, mapInfoNum, doorNum, retRoomIndex, px = -1, py = -1;
+	int mapXSize, mapYSize, x, y, i, move, textLineNum, textIndex, mapInfoNum, doorNum, retRoomIndex, itemIndex, px = -1, py = -1;
 	strcpy(mapNameCopy, mapName);
 	mapInfoFile = fopen(strcat(mapNameCopy, "Info"), "rt");
 	strcpy(mapNameCopy, mapName);
@@ -265,7 +349,6 @@ int inGame(char mapName[])
 
 		if (ch == ESC)
 		{
-			
 			retRoomIndex = 0;
 			break;
 		}
@@ -292,6 +375,21 @@ int inGame(char mapName[])
 			{
 				sscanf(info[py + yface][px + xface], " text %d", &textIndex);
 				printWithPosition(texts[textIndex], 0x07, 0, mapYSize + 2, 1);
+			}
+			else if (strncmp(info[py + yface][px + xface], " item", 5) == 0)
+			{
+				sscanf(info[py + yface][px + xface], " item %d", &itemIndex);
+				if (!itemObtained[itemIndex])
+				{
+					itemObtained[itemIndex] = 1;
+					sprintf(itemText, "%s(을)를 얻었다.", items[itemIndex]);
+					printWithPosition(itemText, 0x0E, 0, mapYSize + 2, 1);
+				}
+				else
+				{
+					sprintf(itemText, "%s(은)는 이미 가져갔다.", items[itemIndex]);
+					printWithPosition(itemText, 0x07, 0, mapYSize + 2, 1);
+				}
 			}
 		}
 		map[py][px] = player;
@@ -326,11 +424,16 @@ int inGame(char mapName[])
 
 	return retRoomIndex;
 }
+
 //y, x door [roomIndex] [doorIndex]
-//y, x inve [fileName]
+//y, x item [itemIndex]
 //y, x text [textIndex]
 //y, x esca [endingName]
 
 //To Do:
-//인벤토리 구현한 다음
 //엔딩을 구현하자
+
+//인벤토리를 구현해야 할까?
+//아이템들을 담은 배열을 만들고
+//얻었는지 여부를 판단하는 배열을 만들어서
+//그걸로 엔딩을 검사하자
