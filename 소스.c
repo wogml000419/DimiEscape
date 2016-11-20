@@ -25,6 +25,7 @@ void printWithPosition(char str[], int color, int x, int y, int isCenterAlign);
 void clearText(int y);
 int titleScreen(void);
 void clearGame(char *rooms[], int roomNum);
+void intro(void);
 int inGame(char mapName[]);
 int HospitalEnd();
 int main(void)//@ = 플레이어, # = 벽, ? = 조사 가능 공간, * - 오브젝트
@@ -38,7 +39,10 @@ int main(void)//@ = 플레이어, # = 벽, ? = 조사 가능 공간, * - 오브젝트
 	if (tReturn == 0)
 		return 0;
 	else if (tReturn == -1)
+	{
 		clearGame(rooms, 5);
+		intro();
+	}
 	if (saveFile != NULL)
 	{
 		fread(&roomIndex, sizeof(int), 1, saveFile);
@@ -201,6 +205,21 @@ void clearGame(char *rooms[], int roomNum)
 	fwrite(&i, sizeof(int), 1, save);
 	fwrite(tempArr, sizeof(int), ITEMNUM, save);
 	fclose(save);
+}
+void intro(void)
+{
+	system("cls");
+	printWithPosition("오늘은 전교생이 견학을 가는 날이다.", 0x07, 0, 1, 1);
+	_getch();
+	printWithPosition("하지만 난 늦잠을 자버렸고,", 0x07, 0, 3, 1);
+	_getch();
+	printWithPosition("깨어나 보니 학교에는 나밖에 없었다.", 0x07, 0, 5, 1);
+	_getch();
+	printWithPosition("순간, 지금이 탈디미의 기회라는 생각이 들었고", 0x07, 0, 7, 1);
+	_getch();
+	printWithPosition("무슨 수를 써서든지 여길 탈출하기로 결심했다.", 0x07, 0, 9, 1);
+	_getch();
+	system("cls");
 }
 int inGame(char mapName[])
 {
@@ -468,7 +487,7 @@ int HospitalEnd()
 	while (1)
 	{
 		printWithPosition("탈디미를 택한다.", colors[choise], CONSOLE_WIDTH / 2 - 19, 19, 0);
-		printWithPosition("건강을 택한다.", colors[!choise], CONSOLE_WIDTH / 2 + 17, 19, 0);
+		printWithPosition("건강을 택한다.", colors[!choise], CONSOLE_WIDTH / 2 + 2, 19, 0);
 		ch = _getch();
 		if (ch == LEFT || ch == RIGHT)
 			choise = !choise;
@@ -514,7 +533,4 @@ int HospitalEnd()
 //y, x item [itemIndex]
 //y, x text [textIndex]
 //y, x esca [endIndex]  (1을 리턴하면 게임 종료, 0은 계속)
-
-//To Do:
-//엔딩을 구현하자
 
