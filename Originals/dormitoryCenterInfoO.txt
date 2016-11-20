@@ -1,0 +1,35 @@
+34
+11, 0 door 2 2
+12, 0 door 2 3
+13, 0 door 2 4
+0, 11 door 4 1
+0, 12 door 4 2
+0, 13 door 4 3
+2, 1 door 5 1
+1, 2 door 5 2
+11, 13 door 6 1
+12, 12 door 6 2
+13, 11 door 6 3
+2, 14 text 0 
+1, 9 text 1
+1, 10 text 1
+0, 6 text 2
+0, 7 text 2
+0, 8 text 2
+10, 1 text 3
+4, 6 esca 0
+4, 7 esca 0
+4, 8 esca 0
+5, 5 esca 0
+5, 9 esca 0
+6, 4 esca 0
+6, 10 esca 0
+7, 4 esca 0
+7, 10 esca 0
+8, 4 esca 0
+8, 10 esca 0
+9, 5 esca 0
+9, 9 esca 0
+10, 6 esca 0
+10, 7 esca 0
+10, 8 esca 0

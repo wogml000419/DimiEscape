@@ -22,12 +22,14 @@ int itemObtained[2] = { 0 ,    0 };
 void init(void);
 void gotoxy(int x, int y);
 void printWithPosition(char str[], int color, int x, int y, int isCenterAlign);
+void clearText(int y);
 int titleScreen(void);
 void clearGame(char *rooms[], int roomNum);
 int inGame(char mapName[]);
+int HospitalEnd();
 int main(void)//@ = 플레이어, # = 벽, ? = 조사 가능 공간, * - 오브젝트
 {
-	char *rooms[3] = { "exit", "dormitoryRoom", "dormitoryLeftHall" };
+	char *rooms[5] = { "exit", "dormitoryRoom", "dormitoryLeftHall", "dormitoryCenter", "dormitoryRightHall" };
 	int roomIndex = 1, tReturn;
 	FILE *saveFile = fopen("save", "rb");
 
@@ -36,7 +38,7 @@ int main(void)//@ = 플레이어, # = 벽, ? = 조사 가능 공간, * - 오브젝트
 	if (tReturn == 0)
 		return 0;
 	else if (tReturn == -1)
-		clearGame(rooms, 3);
+		clearGame(rooms, 5);
 	if (saveFile != NULL)
 	{
 		fread(&roomIndex, sizeof(int), 1, saveFile);
@@ -51,6 +53,11 @@ int main(void)//@ = 플레이어, # = 벽, ? = 조사 가능 공간, * - 오브젝트
 		roomIndex = inGame(rooms[roomIndex]);
 		if (roomIndex == 0)
 			break;
+		else if (roomIndex == -1)
+		{
+			clearGame(rooms, 5);
+			return 0;
+		}
 	}
 	saveFile = fopen("save", "ab");
 	fwrite(itemObtained, sizeof(int), ITEMNUM, saveFile);
@@ -211,7 +218,7 @@ int inGame(char mapName[])
 	char ***info;
 	char ch;
 	int *doorInfo;
-	int mapXSize, mapYSize, x, y, i, move, textLineNum, textIndex, mapInfoNum, doorNum, retRoomIndex, itemIndex, px = -1, py = -1;
+	int mapXSize, mapYSize, x, y, i, move, textLineNum, textIndex, mapInfoNum, doorNum, retRoomIndex, itemIndex, endIndex, endResult, px = -1, py = -1;
 	strcpy(mapNameCopy, mapName);
 	mapInfoFile = fopen(strcat(mapNameCopy, "Info"), "rt");
 	strcpy(mapNameCopy, mapName);
@@ -223,8 +230,8 @@ int inGame(char mapName[])
 	system("cls");
 
 	//맵 파일 불러오기 시작
-	fscanf(mapFile, "%d %d\n", &mapYSize, &mapXSize);
-
+	fscanf(mapFile, "%d %d", &mapYSize, &mapXSize);
+	fgetc(mapFile);		//\n없애기
 	map = (char**)calloc(sizeof(char*), mapYSize);
 	info = (char***)calloc(sizeof(char**), mapYSize);
 	for (y = 0; y < mapYSize; y++)
@@ -234,12 +241,12 @@ int inGame(char mapName[])
 		for (x = 0; x < mapXSize; x++)
 			info[y][x] = NULL;
 	}
-
+	
 	for (y = 0; y < mapYSize; y++)
 	{
 		for (x = 0; x < mapXSize + 1; x++)
 		{
-			fscanf(mapFile, "%c", &ch);
+			ch = fgetc(mapFile);
 			if (ch == '<' || ch == '>' || ch == 'v' || ch == '^')
 			{
 				px = x;
@@ -352,7 +359,7 @@ int inGame(char mapName[])
 			retRoomIndex = 0;
 			break;
 		}
-		printWithPosition("                                                                    ", 0x07, 0, mapYSize + 2, 1);
+		clearText(mapYSize + 2);
 		if (move && map[py + yface][px + xface] == ' ')
 		{
 			map[py][px] = ' ';
@@ -391,6 +398,21 @@ int inGame(char mapName[])
 					printWithPosition(itemText, 0x07, 0, mapYSize + 2, 1);
 				}
 			}
+			else if (strncmp(info[py + yface][px + xface], " esca", 5) == 0)
+			{
+				sscanf(info[py + yface][px + xface], " esca %d", &endIndex);
+				switch (endIndex)
+				{
+				case 0:
+					endResult = HospitalEnd();
+					break;
+				}
+				if (endResult == 1)
+				{
+					retRoomIndex = -1;
+					break;
+				}
+			}
 		}
 		map[py][px] = player;
 		printWithPosition(map[py], 0x07, 0, py + 1, 1);
@@ -424,16 +446,75 @@ int inGame(char mapName[])
 
 	return retRoomIndex;
 }
-
+void clearText(int y)
+{
+	int i;
+	gotoxy(0, y);
+	for (i = 0; i < CONSOLE_WIDTH; i++)
+		putchar(' ');
+}
+int HospitalEnd()
+{
+	int choise = 0;
+	int colors[2] = { 0x07, 0x70 };
+	char ch;
+	printWithPosition("여기로 떨어지면 며칠동안은 병원에 있을 수 있다.", 0x07, 0, 17, 1);
+	_getch();
+	clearText(17);
+	printWithPosition("그렇지만 많이 아플 것이다.", 0x07, 0, 17, 1);
+	_getch();
+	clearText(17);
+	printWithPosition("어떻게 할까?", 0x07, 0, 17, 1);
+	while (1)
+	{
+		printWithPosition("탈디미를 택한다.", colors[choise], CONSOLE_WIDTH / 2 - 19, 19, 0);
+		printWithPosition("건강을 택한다.", colors[!choise], CONSOLE_WIDTH / 2 + 17, 19, 0);
+		ch = _getch();
+		if (ch == LEFT || ch == RIGHT)
+			choise = !choise;
+		else if (ch == ENTER || ch == SPACE)
+			break;
+	}
+	clearText(17);
+	clearText(19);
+	if(choise == 0)
+		printWithPosition("이건 아닌 것 같아.", 0x07, 0, 17, 1);
+	else 
+	{
+		system("cls");
+		printWithPosition("\"쿵\"", 0x07, 0, 1, 1);
+		_getch();
+		printWithPosition("다리가 움직이질 않는다.", 0x07, 0, 3, 1);
+		_getch();
+		if (itemObtained[1])
+		{
+			printWithPosition("휴대폰으로 119에 전화를 걸었다.", 0x07, 0, 5, 1);
+			_getch();
+			printWithPosition("생각보다 구급차는 금방 왔고,", 0x07, 0, 7, 1);
+			_getch();
+			printWithPosition("나는 이틀을 병원에서 보낼 수 있었다.", 0x07, 0, 9, 1);
+			_getch();
+			printWithPosition("=끝=", 0x07, 0, 11, 1);
+		}
+		else
+		{
+			printWithPosition("휴대폰으로 전화를 하려고 했지만, 휴대폰이 생활관에 있다.", 0x07, 0, 5, 1);
+			_getch();
+			printWithPosition("결국 나는 친구들이 올 때까지 차가운 바닥에 누워있었고,", 0x07, 0, 7, 1);
+			_getch();
+			printWithPosition("병원에서 깁스만 한 뒤 바로 학교로 돌아왔다.", 0x07, 0, 9, 1);
+			_getch();
+			printWithPosition("=끝=", 0x07, 0, 11, 1);
+		}
+	}
+	putchar('\n');
+	return choise;
+}
 //y, x door [roomIndex] [doorIndex]
 //y, x item [itemIndex]
 //y, x text [textIndex]
-//y, x esca [endingName]
+//y, x esca [endIndex]  (1을 리턴하면 게임 종료, 0은 계속)
 
 //To Do:
 //엔딩을 구현하자
 
-//인벤토리를 구현해야 할까?
-//아이템들을 담은 배열을 만들고
-//얻었는지 여부를 판단하는 배열을 만들어서
-//그걸로 엔딩을 검사하자
